@@ -2,6 +2,15 @@
 #include <QtConcurrent>
 #include <QDebug>
 
+QStrand::QStrand()
+{
+}
+
+QStrand::~QStrand()
+{
+	waitForFinished();
+}
+
 void QStrand::runAsync(Task handle)
 {
 	QMutexLocker locker(&mutex);

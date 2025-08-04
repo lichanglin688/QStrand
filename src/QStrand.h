@@ -9,7 +9,9 @@ class QStrand
 {
 	using Task = std::function<void(void)>;
 public:
-	QStrand() = default;
+	QStrand();
+	~QStrand();
+
 	void runAsync(Task handle);
 	void waitForFinished();
 private:
