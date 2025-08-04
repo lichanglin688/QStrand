@@ -1,6 +1,6 @@
 #include "QStrand.h"
-//#include <QThreadPool>
 #include <QtConcurrent>
+#include <QDebug>
 
 void QStrand::runAsync(Task handle)
 {
@@ -10,12 +10,6 @@ void QStrand::runAsync(Task handle)
 	{
 		QtConcurrent::run([this] { run(); });
 	}
-}
-
-bool QStrand::isRunning() const
-{
-	QMutexLocker locker(&mutex);
-	return !tasks.empty();
 }
 
 void QStrand::waitForFinished()
@@ -34,6 +28,7 @@ void QStrand::run()
 		QMutexLocker locker(&mutex);
 		if (tasks.empty())
 		{
+			waitCondition.notify_one();
 			return;
 		}
 		Task task = std::move(tasks.first());
@@ -41,6 +36,5 @@ void QStrand::run()
 		task();
 		locker.relock();
 		tasks.removeFirst();
-		waitCondition.notify_all();
 	}
 }

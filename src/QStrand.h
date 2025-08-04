@@ -11,7 +11,6 @@ class QStrand
 public:
 	QStrand() = default;
 	void runAsync(Task handle);
-	bool isRunning() const;
 	void waitForFinished();
 private:
 	void run();
