@@ -13,3 +13,6 @@ set(CMAKE_AUTORCC ON)
 find_package(Qt5 COMPONENTS Core Concurrent REQUIRED)
 add_executable(example src/QStrand.cpp example/main.cpp)
 target_link_libraries(example PRIVATE Qt5::Core Qt5::Concurrent)
+
+message(${CMAKE_CXX_FLAGS})
+message(${CMAKE_CXX_FLAGS_DEBUG})

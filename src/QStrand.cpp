@@ -2,7 +2,8 @@
 #include <QtConcurrent>
 #include <QDebug>
 
-QStrand::QStrand()
+QStrand::QStrand(QThreadPool* threadPool)
+	:threadPool(threadPool)
 {
 }
 
@@ -14,20 +15,21 @@ QStrand::~QStrand()
 void QStrand::runAsync(Task handle)
 {
 	QMutexLocker locker(&mutex);
-	tasks.push_back(std::move(handle));
-	if (tasks.size() == 1)
+	if (isRunning)
 	{
-		QtConcurrent::run([this] { run(); });
+		tasks.push_back(std::move(handle));
+	}
+	else
+	{
+		tasks.push_back(std::move(handle));
+		isRunning = true;
+		QtConcurrent::run(threadPool, [this] { run(); });
 	}
 }
 
 void QStrand::waitForFinished()
 {
-	QMutexLocker locker(&mutex);
-	while (!tasks.empty())
-	{
-		waitCondition.wait(&mutex);
-	}
+	threadPool->waitForDone();
 }
 
 void QStrand::run()
@@ -37,13 +39,16 @@ void QStrand::run()
 		QMutexLocker locker(&mutex);
 		if (tasks.empty())
 		{
-			waitCondition.notify_one();
 			return;
 		}
-		Task task = std::move(tasks.first());
+		QList<Task> notRunTasks = std::move(this->tasks);
+		isRunning = true;
 		locker.unlock();
-		task();
+		for (auto& task : notRunTasks)
+		{
+			task();
+		}
 		locker.relock();
-		tasks.removeFirst();
+		isRunning = false;
 	}
 }

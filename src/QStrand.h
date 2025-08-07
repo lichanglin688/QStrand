@@ -4,12 +4,13 @@
 #include <QWaitCondition>
 #include <QList>
 #include <functional>
+#include <QThreadPool>
 
 class QStrand
 {
 	using Task = std::function<void(void)>;
 public:
-	QStrand();
+	QStrand(QThreadPool* threadPool = QThreadPool::globalInstance());
 	~QStrand();
 
 	void runAsync(Task handle);
@@ -19,5 +20,7 @@ private:
 private:
 	QList<Task> tasks;
 	mutable QMutex mutex;
-	QWaitCondition waitCondition;
+	//QWaitCondition waitCondition;
+	QThreadPool* threadPool;
+	bool isRunning{};
 };
