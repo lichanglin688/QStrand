@@ -1,12 +1,13 @@
 #include "QStrand.h"
 #include <QtConcurrent>
 #include <QDebug>
+#include <QFuture>
 
-QStrand::QStrand(QThreadPool* threadPool)
-	:threadPool(threadPool)
+QStrand::QStrand(QThreadPool* threadPool, QObject* parent)
+	:QObject(parent)
+	,threadPool(threadPool)
 {
 }
-
 QStrand::~QStrand()
 {
 	waitForFinished();
@@ -15,21 +16,37 @@ QStrand::~QStrand()
 void QStrand::runAsync(Task handle)
 {
 	QMutexLocker locker(&mutex);
-	if (isRunning)
+	if (!isRunning)
 	{
 		tasks.push_back(std::move(handle));
+		QFutureWatcher<void>* watcher = new QFutureWatcher<void>(this);
+		connect(watcher, &QFutureWatcher<void>::finished, this, &QStrand::onFinished);
+		QFuture<void> future = QtConcurrent::run(threadPool, [this] { run(); });
+		watcher->setFuture(future);
+		watchers.push_back(watcher);
+		return;
 	}
-	else
+	tasks.push_back(std::move(handle));
+}
+
+void QStrand::onFinished()
+{
+	QFutureWatcher<void>* watcher = static_cast<QFutureWatcher<void>*>(sender());
+	watcher->deleteLater();
+	QMutexLocker locker(&mutex);
+	watchers.removeOne(watcher);
+	if (watchers.isEmpty())
 	{
-		tasks.push_back(std::move(handle));
-		isRunning = true;
-		QtConcurrent::run(threadPool, [this] { run(); });
+		emit finished();
 	}
 }
 
 void QStrand::waitForFinished()
 {
-	threadPool->waitForDone();
+	for(auto& watcher : watchers)
+	{
+		watcher->waitForFinished();
+	}
 }
 
 void QStrand::run()
